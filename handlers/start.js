@@ -1,48 +1,40 @@
-const { InlineKeyboard, InputFile } = require('grammy');
-const fs = require('fs');
-const path = require('path');
+const { InlineKeyboard } = require('grammy');
 
 const sesi = {};
-module.exports = {
-  sesi,
-  bersihkanRiwayat,
-  tampilkanMenuUtama
-};
 
-async function bersihkanRiwayat(ctx, daftarPesanId) {
-  for (const id of daftarPesanId) {
+async function clearHistory(ctx, messageIdList) {
+  for (const msgId of messageIdList) {
     try {
-      await ctx.api.deleteMessage(ctx.chat.id, id);
+      await ctx.api.deleteMessage(ctx.chat.id, msgId);
     } catch (e) {
       console.log('Gagal hapus pesan:', e.message);
     }
   }
 }
 
-async function tampilkanMenuUtama(ctx, idPengguna) {
-  const photoPath = path.join(__dirname, '..', 'palembangpy.jpg');
-  
-  if (!fs.existsSync(photoPath)) {
-    await ctx.reply('File gambar tidak ditemukan di folder utama.');
-    return;
-  }
-
+async function showMainMenu(ctx, userId) {
   const keyboard = new InlineKeyboard()
     .text('Buat Akun', 'buat_akun')
     .text('Tentang', 'tentang')
     .row()
     .url('Ikuti Kami', 'https://instagram.com/palembangpy')
-    .url('💜 Beri Dukungan', 'https://sociabuzz.com/palembangpy/tribe')
+    .url('Beri Dukungan', 'https://sociabuzz.com/palembangpy/tribe')
     .row()
-    .text('🐍 Playground', 'playground');
+    .text('Playground', 'playground');
     
-  const pesan = await ctx.replyWithPhoto(new InputFile(photoPath), {
-    caption: 'Selamat Datang di PalembangPy!\n' +
-      'Komunitas Pengembang Python Kota Palembang\n' +
-      'Belajar, Berbagi, dan Berkembang Bersama.\n' +
-      'Silakan pilih menu di bawah',
-    reply_markup: keyboard
-  });
+  const message = await ctx.reply(
+    'Selamat Datang di PalembangPy!\n' +
+    'Komunitas Pengembang Python Kota Palembang\n' +
+    'Belajar, Berbagi, dan Berkembang Bersama.\n' +
+    'Silakan pilih menu di bawah',
+    { reply_markup: keyboard }
+  );
 
-  sesi[idPengguna] = { daftarPesan: [pesan.message_id] };
+  sesi[userId] = { messageList: [message.message_id] };
 }
+
+module.exports = {
+  sesi,
+  clearHistory,
+  showMainMenu
+};

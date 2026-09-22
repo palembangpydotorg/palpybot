@@ -12,8 +12,14 @@
   "type": "commonjs",
   "dependencies": {
     "@grammyjs/runner": "^2.0.3",
+    "canvas": "^3.2.3",
     "dotenv": "^18.0.1",
     "grammy": "^1.46.0",
-    "pyodide": "^314.0.7"
+    "node-gyp": "^13.0.2",
+    "pyodide": "^314.0.7",
+    "rebuild": "^0.1.2"
+  },
+  "allowScripts": {
+    "canvas@3.2.3": true
   }
 }

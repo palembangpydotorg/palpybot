@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mitra — PalembangPy</title>
+  <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css">
+  <style>body { font-family: 'Inter', system-ui, sans-serif; }</style>
+</head>
+<body>
+  <script src="app.js"></script>
+  <script>
+    let editingId = null;
+
+    function renderTable(partners) {
+      const tbody = document.getElementById('partnerTableBody');
+      tbody.innerHTML = partners.length ? partners.map(p => `
+        <tr class="hover:bg-slate-50/70 transition-colors">
+          <td class="px-3 md:px-5 py-2.5 md:py-3">
+            <div class="flex items-center gap-2 md:gap-3">
+              <div class="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white text-xs md:text-sm font-bold flex-shrink-0 shadow-md shadow-amber-500/20">
+                ${p.name.charAt(0)}
+              </div>
+              <div class="min-w-0">
+                <div class="font-medium text-slate-700 text-xs md:text-sm truncate">${p.name}</div>
+                <div class="text-[10px] md:text-xs text-slate-400 truncate hidden sm:block">${p.contact_person || '-'}</div>
+              </div>
+            </div>
+          </td>
+          <td class="px-3 md:px-5 py-2.5 md:py-3 text-slate-500 text-xs md:text-sm hidden md:table-cell">
+            <i class="fa fa-envelope-o mr-1.5 text-slate-400"></i>${p.email || '-'}
+          </td>
+          <td class="px-3 md:px-5 py-2.5 md:py-3 text-slate-500 text-xs md:text-sm hidden lg:table-cell">
+            <i class="fa fa-phone mr-1.5 text-slate-400"></i>${p.phone || '-'}
+          </td>
+          <td class="px-3 md:px-5 py-2.5 md:py-3 text-right">
+            <div class="flex items-center justify-end gap-1 md:gap-2">
+              <button onclick="editPartner(${p.id})" class="p-1.5 md:p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition"><i class="fa fa-pencil text-xs md:text-sm"></i></button>
+              <button onclick="hapusPartner(${p.id})" class="p-1.5 md:p-2 text-rose-500 hover:bg-rose-50 rounded-lg transition"><i class="fa fa-trash text-xs md:text-sm"></i></button>
+            </div>
+          </td>
+        </tr>
+      `).join('') : '<tr><td colspan="4" class="py-10 md:py-16 text-center"><div class="text-slate-300 text-3xl md:text-4xl mb-2"><i class="fa fa-handshake-o"></i></div><p class="text-xs md:text-sm text-slate-400">Belum ada mitra</p></td></tr>';
+    }
+
+    async function loadPartners() { renderTable(await getPartners()); }
+    function tambahPartner() { editingId = null; document.getElementById('partnerForm').reset(); document.getElementById('modalTitle').textContent = 'Tambah Mitra'; openModal('partnerModal'); }
+    function editPartner(id) {
+      const p = DATA.partners.find(x => x.id === id); if (!p) return;
+      editingId = id; document.getElementById('modalTitle').textContent = 'Edit Mitra';
+      document.getElementById('partnerName').value = p.name;
+      document.getElementById('partnerContact').value = p.contact_person || '';
+      document.getElementById('partnerEmail').value = p.email || '';
+      document.getElementById('partnerPhone').value = p.phone || '';
+      openModal('partnerModal');
+    }
+    function simpanPartner(e) {
+      e.preventDefault();
+      const data = { name: document.getElementById('partnerName').value.trim(), contact_person: document.getElementById('partnerContact').value.trim(), email: document.getElementById('partnerEmail').value.trim(), phone: document.getElementById('partnerPhone').value.trim() };
+      editingId ? updatePartner(editingId, data) : addPartner(data);
+      closeModal('partnerModal'); loadPartners();
+    }
+    function hapusPartner(id) { const p = DATA.partners.find(x => x.id === id); if (!confirm(`Yakin hapus "${p.name}"?`)) return; deletePartner(id); loadPartners(); }
+
+    async function init() {
+      const ok = await checkAuth(); if (!ok) return;
+      const content = `
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 md:mb-6">
+          <div><h2 class="text-lg md:text-2xl font-bold text-slate-800">Data Mitra</h2><p class="text-xs md:text-sm text-slate-500 mt-0.5">Mitra kerjasama komunitas</p></div>
+          <button onclick="tambahPartner()" class="inline-flex items-center justify-center gap-1.5 bg-gradient-to-r from-indigo-500 to-blue-600 hover:from-indigo-600 hover:to-blue-700 text-white text-xs md:text-sm font-semibold px-3 md:px-4 py-2 md:py-2.5 rounded-xl shadow-lg shadow-indigo-500/25 hover:shadow-xl transition-all hover:-translate-y-0.5">
+            <i class="fa fa-plus"></i><span class="hidden sm:inline">Tambah Mitra</span><span class="sm:hidden">Tambah</span>
+          </button>
+        </div>
+        <div class="bg-white rounded-xl md:rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+          <table class="w-full text-xs md:text-sm"><thead><tr class="text-left text-slate-500 bg-slate-50/50">
+            <th class="px-3 md:px-5 py-2.5 md:py-3 font-semibold text-[10px] md:text-xs uppercase tracking-wider">Mitra</th>
+            <th class="px-3 md:px-5 py-2.5 md:py-3 font-semibold text-[10px] md:text-xs uppercase tracking-wider hidden md:table-cell">Email</th>
+            <th class="px-3 md:px-5 py-2.5 md:py-3 font-semibold text-[10px] md:text-xs uppercase tracking-wider hidden lg:table-cell">Telepon</th>
+            <th class="px-3 md:px-5 py-2.5 md:py-3 font-semibold text-[10px] md:text-xs uppercase tracking-wider text-right">Aksi</th>
+          </tr></thead><tbody id="partnerTableBody" class="divide-y divide-slate-100"></tbody></table>
+        </div>
+        <div id="partnerModal" class="modal-backdrop fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-end md:items-center justify-center p-0 md:p-4">
+          <div class="bg-white w-full md:max-w-md rounded-t-2xl md:rounded-2xl shadow-2xl animate-slide-up">
+            <div class="flex items-center justify-between p-4 md:p-5 border-b border-slate-100">
+              <h3 id="modalTitle" class="text-sm md:text-base font-semibold text-slate-800">Tambah Mitra</h3>
+              <button onclick="closeModal('partnerModal')" class="p-2 -mr-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition"><i class="fa fa-times"></i></button>
+            </div>
+            <form id="partnerForm" onsubmit="simpanPartner(event)" class="p-4 md:p-5 space-y-3 md:space-y-4 max-h-[70vh] overflow-y-auto">
+              <div><label class="block text-xs font-semibold text-slate-600 mb-1">Nama Mitra *</label><input type="text" id="partnerName" required class="w-full px-3 py-2 text-xs md:text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all"></div>
+              <div><label class="block text-xs font-semibold text-slate-600 mb-1">Kontak Person</label><input type="text" id="partnerContact" class="w-full px-3 py-2 text-xs md:text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all"></div>
+              <div><label class="block text-xs font-semibold text-slate-600 mb-1">Email</label><input type="email" id="partnerEmail" class="w-full px-3 py-2 text-xs md:text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all"></div>
+              <div><label class="block text-xs font-semibold text-slate-600 mb-1">Telepon</label><input type="text" id="partnerPhone" class="w-full px-3 py-2 text-xs md:text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all"></div>
+              <div class="flex gap-2 md:gap-3 pt-2 md:pt-3">
+                <button type="button" onclick="closeModal('partnerModal')" class="flex-1 px-3 md:px-4 py-2 text-xs md:text-sm font-medium border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 transition">Batal</button>
+                <button type="submit" class="flex-1 px-3 md:px-4 py-2 text-xs md:text-sm font-semibold bg-gradient-to-r from-indigo-500 to-blue-600 text-white rounded-xl shadow-lg shadow-indigo-500/25 hover:shadow-xl transition-all">Simpan</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      `;
+      document.body.innerHTML = renderLayout('partners', content);
+      initLayoutEvents(); loadPartners();
+    }
+    init();
+  </script>
+  <style>@keyframes slide-up { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } } .animate-slide-up { animation: slide-up 0.25s ease-out; }</style>
+</body>
+</html>

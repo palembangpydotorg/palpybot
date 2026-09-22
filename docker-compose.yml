@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  bot:
+    build: .
+    container_name: palembangpy-bot
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./threads.json:/app/threads.json
+      - ./tmp:/tmp
+    cpus: '0.75'
+    mem_limit: 512M
+    pids_limit: 64
+    security_opt:
+      - NoNewPrivileges=true

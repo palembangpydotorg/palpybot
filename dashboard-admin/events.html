@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Manajemen Event — PalembangPy</title>
+  <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css">
+  <style>body { font-family: 'Inter', system-ui, sans-serif; }</style>
+</head>
+<body>
+  <script src="app.js"></script>
+  <script>
+    let editingId = null;
+
+    function renderTable(events) {
+      const tbody = document.getElementById('eventTableBody');
+      tbody.innerHTML = events.length ? events.map(e => `
+        <tr class="hover:bg-slate-50/70 transition-colors">
+          <td class="px-3 md:px-5 py-2.5 md:py-3">
+            <div class="font-medium text-slate-700 text-xs md:text-sm">${e.name}</div>
+            <div class="text-[10px] md:text-xs text-slate-400 mt-0.5 md:hidden">${e.date} • ${e.location}</div>
+          </td>
+          <td class="px-3 md:px-5 py-2.5 md:py-3 text-slate-500 text-xs md:text-sm hidden md:table-cell">${e.date}</td>
+          <td class="px-3 md:px-5 py-2.5 md:py-3 text-slate-500 text-xs md:text-sm hidden lg:table-cell">${e.location}</td>
+          <td class="px-3 md:px-5 py-2.5 md:py-3 hidden sm:table-cell">
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 md:px-2.5 md:py-1 rounded-full text-[10px] md:text-xs font-medium ${
+              e.status === 'Akan Datang' ? 'bg-blue-50 text-blue-700' : 
+              e.status === 'Berlangsung' ? 'bg-emerald-50 text-emerald-700' : 
+              'bg-slate-100 text-slate-600'
+            }">
+              <span class="w-1.5 h-1.5 rounded-full ${
+                e.status === 'Akan Datang' ? 'bg-blue-500' : 
+                e.status === 'Berlangsung' ? 'bg-emerald-500 animate-pulse' : 
+                'bg-slate-400'
+              }"></span>
+              ${e.status}
+            </span>
+          </td>
+          <td class="px-3 md:px-5 py-2.5 md:py-3">
+            <div class="flex items-center gap-1 md:gap-2">
+              <button onclick="editEvent(${e.id})" class="p-1.5 md:p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition" title="Edit">
+                <i class="fa fa-pencil text-xs md:text-sm"></i>
+              </button>
+              <button onclick="hapusEvent(${e.id})" class="p-1.5 md:p-2 text-rose-500 hover:bg-rose-50 rounded-lg transition" title="Hapus">
+                <i class="fa fa-trash text-xs md:text-sm"></i>
+              </button>
+            </div>
+          </td>
+        </tr>
+      `).join('') : '<tr><td colspan="5" class="py-10 md:py-16 text-center"><div class="text-slate-300 text-3xl md:text-4xl mb-2"><i class="fa fa-calendar-o"></i></div><p class="text-xs md:text-sm text-slate-400">Belum ada event</p></td></tr>';
+    }
+
+    async function loadEvents() { renderTable(await getEvents()); }
+
+    function tambahEvent() {
+      editingId = null;
+      document.getElementById('eventForm').reset();
+      document.getElementById('modalTitle').textContent = 'Tambah Event Baru';
+      openModal('eventModal');
+    }
+
+    function editEvent(id) {
+      const e = DATA.events.find(x => x.id === id);
+      if (!e) return;
+      editingId = id;
+      document.getElementById('modalTitle').textContent = 'Edit Event';
+      document.getElementById('eventName').value = e.name;
+      document.getElementById('eventDesc').value = e.description || '';
+      document.getElementById('eventDate').value = e.date;
+      document.getElementById('eventLocation').value = e.location;
+      document.getElementById('eventQuota').value = e.quota || '';
+      document.getElementById('eventStatus').value = e.status;
+      openModal('eventModal');
+    }
+
+    function simpanEvent(e) {
+      e.preventDefault();
+      const data = {
+        name: document.getElementById('eventName').value.trim(),
+        description: document.getElementById('eventDesc').value.trim(),
+        date: document.getElementById('eventDate').value,
+        location: document.getElementById('eventLocation').value.trim(),
+        quota: parseInt(document.getElementById('eventQuota').value) || 0,
+        status: document.getElementById('eventStatus').value
+      };
+      editingId ? updateEvent(editingId, data) : addEvent(data);
+      closeModal('eventModal');
+      loadEvents();
+    }
+
+    function hapusEvent(id) {
+      const e = DATA.events.find(x => x.id === id);
+      if (!confirm(`Yakin hapus event "${e.name}"?`)) return;
+      deleteEvent(id);
+      loadEvents();
+    }
+
+    async function init() {
+      const ok = await checkAuth();
+      if (!ok) return;
+
+      const content = `
+        <!-- Header -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 md:mb-6">
+          <div>
+            <h2 class="text-lg md:text-2xl font-bold text-slate-800">Manajemen Event</h2>
+            <p class="text-xs md:text-sm text-slate-500 mt-0.5">Kelola semua event komunitas</p>
+          </div>
+          <button onclick="tambahEvent()" class="inline-flex items-center justify-center gap-1.5 bg-gradient-to-r from-indigo-500 to-blue-600 hover:from-indigo-600 hover:to-blue-700 text-white text-xs md:text-sm font-semibold px-3 md:px-4 py-2 md:py-2.5 rounded-xl shadow-lg shadow-indigo-500/25 hover:shadow-xl hover:shadow-indigo-500/35 transition-all hover:-translate-y-0.5">
+            <i class="fa fa-plus"></i>
+            <span class="hidden sm:inline">Tambah Event</span>
+            <span class="sm:hidden">Tambah</span>
+          </button>
+        </div>
+
+        <!-- Table Card -->
+        <div class="bg-white rounded-xl md:rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-xs md:text-sm">
+              <thead>
+                <tr class="text-left text-slate-500 bg-slate-50/50">
+                  <th class="px-3 md:px-5 py-2.5 md:py-3 font-semibold text-[10px] md:text-xs uppercase tracking-wider">Nama Event</th>
+                  <th class="px-3 md:px-5 py-2.5 md:py-3 font-semibold text-[10px] md:text-xs uppercase tracking-wider hidden md:table-cell">Tanggal</th>
+                  <th class="px-3 md:px-5 py-2.5 md:py-3 font-semibold text-[10px] md:text-xs uppercase tracking-wider hidden lg:table-cell">Lokasi</th>
+                  <th class="px-3 md:px-5 py-2.5 md:py-3 font-semibold text-[10px] md:text-xs uppercase tracking-wider hidden sm:table-cell">Status</th>
+                  <th class="px-3 md:px-5 py-2.5 md:py-3 font-semibold text-[10px] md:text-xs uppercase tracking-wider text-right">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="eventTableBody" class="divide-y divide-slate-100"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Modal -->
+        <div id="eventModal" class="modal-backdrop fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-end md:items-center justify-center p-0 md:p-4">
+          <div class="bg-white w-full md:max-w-md rounded-t-2xl md:rounded-2xl shadow-2xl animate-slide-up">
+            <div class="flex items-center justify-between p-4 md:p-5 border-b border-slate-100">
+              <h3 id="modalTitle" class="text-sm md:text-base font-semibold text-slate-800">Tambah Event Baru</h3>
+              <button onclick="closeModal('eventModal')" class="p-2 -mr-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition">
+                <i class="fa fa-times"></i>
+              </button>
+            </div>
+            <form id="eventForm" onsubmit="simpanEvent(event)" class="p-4 md:p-5 space-y-3 md:space-y-4 max-h-[70vh] overflow-y-auto">
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Nama Event *</label>
+                <input type="text" id="eventName" required class="w-full px-3 py-2 text-xs md:text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Deskripsi</label>
+                <textarea id="eventDesc" rows="2" class="w-full px-3 py-2 text-xs md:text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all resize-none"></textarea>
+              </div>
+              <div class="grid grid-cols-2 gap-2 md:gap-3">
+                <div>
+                  <label class="block text-xs font-semibold text-slate-600 mb-1">Tanggal *</label>
+                  <input type="date" id="eventDate" required class="w-full px-3 py-2 text-xs md:text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all">
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-slate-600 mb-1">Kuota</label>
+                  <input type="number" id="eventQuota" min="0" class="w-full px-3 py-2 text-xs md:text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all">
+                </div>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Lokasi *</label>
+                <input type="text" id="eventLocation" required class="w-full px-3 py-2 text-xs md:text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Status</label>
+                <select id="eventStatus" class="w-full px-3 py-2 text-xs md:text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all">
+                  <option value="Akan Datang">Akan Datang</option>
+                  <option value="Berlangsung">Berlangsung</option>
+                  <option value="Selesai">Selesai</option>
+                </select>
+              </div>
+              <div class="flex gap-2 md:gap-3 pt-2 md:pt-3">
+                <button type="button" onclick="closeModal('eventModal')" class="flex-1 px-3 md:px-4 py-2 text-xs md:text-sm font-medium border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 transition">Batal</button>
+                <button type="submit" class="flex-1 px-3 md:px-4 py-2 text-xs md:text-sm font-semibold bg-gradient-to-r from-indigo-500 to-blue-600 text-white rounded-xl shadow-lg shadow-indigo-500/25 hover:shadow-xl transition-all">Simpan</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      `;
+
+      document.body.innerHTML = renderLayout('events', content);
+      initLayoutEvents();
+      loadEvents();
+    }
+    init();
+  </script>
+  <style>
+    @keyframes slide-up { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    .animate-slide-up { animation: slide-up 0.25s ease-out; }
+  </style>
+</body>
+</html>

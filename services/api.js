@@ -1,14 +1,48 @@
 require('dotenv').config();
 const API_URL = process.env.API_URL;
 
-// Peta: telegram_id → user_id (UUID)
-const petaPengguna = new Map();
+const userMap = new Map();
+let accessToken = null;
 
-async function daftarPengguna(data) {
+async function login(username, password) {
+  const body = new URLSearchParams();
+  body.append('username', username);
+  body.append('password', password);
+
   try {
+    const res = await fetch(`${API_URL}/v1/auth/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: body.toString()
+    });
+
+    if (!res.ok) {
+      throw new Error(`Status: ${res.status}`);
+    }
+
+    const data = await res.json();
+    if (data.access_token) {
+      accessToken = data.access_token;
+    }
+    return data;
+  } catch (e) {
+    console.log('Login error:', e.message);
+    return null;
+  }
+}
+
+async function registerUser(data) {
+  try {
+    const headers = { 'Content-Type': 'application/json' };
+    if (accessToken) {
+      headers['Authorization'] = `Bearer ${accessToken}`;
+    }
+
     const res = await fetch(`${API_URL}/v1/users`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({
         name: data.name,
         username: data.username,
@@ -16,26 +50,30 @@ async function daftarPengguna(data) {
         avatar_url: data.avatar_url
       })
     });
-    const hasil = await res.json();
+    const result = await res.json();
     
-    if (hasil.telegram_id && hasil.id) {
-      petaPengguna.set(String(hasil.telegram_id), hasil.id);
+    if (result.telegram_id && result.id) {
+      userMap.set(String(result.telegram_id), result.id);
     }
-    return hasil;
+    return result;
   } catch (e) {
     return { sukses: false, pesan: 'Gagal terhubung ke server' };
   }
 }
 
-// GET /v1/users/telegram/{telegram_id}
-async function cekTerdaftar(telegramId) {
+async function checkRegistered(telegramId) {
   try {
     const id = String(telegramId);
-    const res = await fetch(`${API_URL}/v1/users/telegram/${encodeURIComponent(id)}`);
+    const headers = {};
+    if (accessToken) {
+      headers['Authorization'] = `Bearer ${accessToken}`;
+    }
+
+    const res = await fetch(`${API_URL}/v1/users/telegram/${encodeURIComponent(id)}`, { headers });
     if (res.ok) {
       const data = await res.json();
       if (data.id) {
-        petaPengguna.set(id, data.id);
+        userMap.set(id, data.id);
       }
       return data;
     }
@@ -45,24 +83,26 @@ async function cekTerdaftar(telegramId) {
   }
 }
 
-// PATCH /v1/users/{user_id} — field: points
-async function tambahPoin(telegramId, poinTambah = 1) {
+async function addPoints(telegramId, addAmount = 1) {
   try {
     const id = String(telegramId);
-    let userId = petaPengguna.get(id);
+    let userId = userMap.get(id);
     
     if (!userId) {
-      const data = await cekTerdaftar(id);
+      const data = await checkRegistered(id);
       if (!data || !data.id) return null;
       userId = data.id;
     }
 
+    const headers = { 'Content-Type': 'application/json' };
+    if (accessToken) {
+      headers['Authorization'] = `Bearer ${accessToken}`;
+    }
+
     const res = await fetch(`${API_URL}/v1/users/${userId}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        points: poinTambah  // ✅ Field persis sesuai struktur
-      })
+      headers,
+      body: JSON.stringify({ points: addAmount })
     });
     return await res.json();
   } catch (e) {
@@ -72,7 +112,8 @@ async function tambahPoin(telegramId, poinTambah = 1) {
 }
 
 module.exports = {
-  daftarPengguna,
-  cekTerdaftar,
-  tambahPoin
+  login,
+  registerUser,
+  checkRegistered,
+  addPoints
 };

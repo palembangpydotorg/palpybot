@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Event Dashboard Mini App</title>
+    
+    <!-- Telegram Web App API -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    
+    <!-- Tailwind CSS v4 Browser CDN -->
+    <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
+    
+    <style>
+        /* Adaptasi Tema Native Telegram */
+        :root {
+            --tg-bg: var(--tg-theme-bg-color, #ffffff);
+            --tg-sec-bg: var(--tg-theme-secondary-bg-color, #f3f4f6);
+            --tg-text: var(--tg-theme-text-color, #000000);
+            --tg-hint: var(--tg-theme-hint-color, #6b7280);
+            --tg-btn: var(--tg-theme-button-color, #2563eb);
+            --tg-btn-text: var(--tg-theme-button-text-color, #ffffff);
+            --tg-border: var(--tg-theme-divider-color, #e5e7eb);
+        }
+        body {
+            background-color: var(--tg-sec-bg);
+            color: var(--tg-text);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            -webkit-font-smoothing: antialiased;
+            /* Padding bottom agar konten tidak tertutup bottom nav */
+            padding-bottom: 70px; 
+        }
+        .tg-card {
+            background-color: var(--tg-bg);
+            border-radius: 0.75rem;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            border: 1px solid var(--tg-border);
+        }
+        .tg-btn-primary {
+            background-color: var(--tg-btn);
+            color: var(--tg-btn-text);
+            transition: opacity 0.2s;
+        }
+        .tg-btn-primary:active { opacity: 0.8; }
+        .text-hint { color: var(--tg-hint); }
+        .border-tg { border-color: var(--tg-border); }
+        
+        /* Bottom Nav Active State */
+        .nav-item.active { color: var(--tg-btn); }
+        .nav-item { color: var(--tg-hint); }
+
+        /* Modal Overlay */
+        #qr-modal {
+            background-color: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- DEVELOPMENT TOGGLE (Kecil di pojok atas) -->
+    <div class="fixed top-2 right-2 z-50 flex space-x-1 opacity-50 hover:opacity-100 transition-opacity">
+        <button onclick="switchRole('user')" class="px-2 py-1 text-[10px] bg-yellow-400 text-black rounded-md font-bold shadow-md">USER</button>
+        <button onclick="switchRole('admin')" class="px-2 py-1 text-[10px] bg-red-500 text-white rounded-md font-bold shadow-md">ADMIN</button>
+    </div>
+
+    <!-- ==================== USER VIEW ==================== -->
+    <div id="view-user" class="w-full">
+        
+        <!-- HEADER (Selalu tampil di atas untuk User) -->
+        <div class="flex items-center space-x-4 p-4 mb-2" style="background-color: var(--tg-bg)">
+            <div class="w-12 h-12 rounded-full flex items-center justify-center font-bold text-xl" 
+                 style="background-color: var(--tg-btn); color: var(--tg-btn-text)" id="user-avatar">
+                U
+            </div>
+            <div>
+                <h1 class="text-lg font-bold" id="user-name">Memuat...</h1>
+                <p class="text-sm text-hint">Mahasiswa / Peserta</p>
+            </div>
+        </div>
+
+        <!-- TAB 1: DASHBOARD -->
+        <div id="tab-dashboard" class="user-tab p-4 space-y-4">
+            <!-- Statistik Grid -->
+            <div class="grid grid-cols-3 gap-3">
+                <div class="tg-card p-3 text-center">
+                    <p class="text-2xl font-bold text-blue-500" id="stat-events">0</p>
+                    <p class="text-xs text-hint mt-1">Event Diikuti</p>
+                </div>
+                <div class="tg-card p-3 text-center">
+                    <p class="text-2xl font-bold text-green-500">250</p>
+                    <p class="text-xs text-hint mt-1">Total Point</p>
+                </div>
+                <div class="tg-card p-3 text-center">
+                    <p class="text-2xl font-bold text-purple-500" id="stat-certs">0</p>
+                    <p class="text-xs text-hint mt-1">Sertifikat</p>
+                </div>
+            </div>
+
+            <!-- Highlight Event Berjalan -->
+            <div>
+                <h2 class="font-bold mb-2 px-1 text-sm tracking-wide">Sedang Berjalan</h2>
+                <div class="tg-card p-4 border-l-4 border-l-green-500">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <span class="text-[10px] font-bold px-2 py-1 bg-green-100 text-green-700 rounded-md">LIVE HARI INI</span>
+                            <h3 class="font-bold text-md mt-2">PyConID 2026</h3>
+                            <p class="text-xs text-hint mt-1">Main Hall, Jakarta</p>
+                        </div>
+                        <button onclick="showTicket('PyConID 2026', 'EVT-PYC-001')" class="px-3 py-2 bg-blue-100 text-blue-600 rounded-lg text-xs font-bold flex flex-col items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 7h.01"/><path d="M17 7h.01"/><path d="M7 17h.01"/><path d="M17 17h.01"/><path d="M12 7v10"/></svg>
+                            <span class="mt-1">Tiket QR</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 2: EVENTS LIST -->
+        <div id="tab-events" class="user-tab p-4 space-y-4 hidden">
+            <h2 class="font-bold px-1 text-sm tracking-wide">Semua Event Saya</h2>
+            <div class="tg-card divide-y border-tg" id="user-event-list">
+                <!-- Injeksi JS -->
+            </div>
+        </div>
+
+        <!-- TAB 3: SERTIFIKAT -->
+        <div id="tab-certs" class="user-tab p-4 space-y-4 hidden">
+            <h2 class="font-bold px-1 text-sm tracking-wide">Koleksi Sertifikat</h2>
+            <div class="grid grid-cols-1 gap-3" id="user-cert-list">
+                <!-- Injeksi JS -->
+            </div>
+        </div>
+
+        <!-- BOTTOM NAVIGATION -->
+        <div class="fixed bottom-0 left-0 w-full tg-card rounded-none rounded-t-xl border-t border-tg flex justify-around items-center p-2 z-40 pb-safe">
+            <button onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-item active flex flex-col items-center w-20 py-1 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
+                <span class="text-[10px] mt-1 font-medium">Dashboard</span>
+            </button>
+            <button onclick="switchTab('events')" id="nav-events" class="nav-item flex flex-col items-center w-20 py-1 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="8" rx="2"/><path d="M3 13h18"/></svg>
+                <span class="text-[10px] mt-1 font-medium">Event</span>
+            </button>
+            <button onclick="switchTab('certs')" id="nav-certs" class="nav-item flex flex-col items-center w-20 py-1 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg>
+                <span class="text-[10px] mt-1 font-medium">Sertifikat</span>
+            </button>
+        </div>
+
+    </div>
+
+    <!-- ==================== ADMIN VIEW (TIM REGISTRASI) ==================== -->
+    <div id="view-admin" class="p-4 space-y-4 hidden">
+        <div class="px-2 py-1">
+            <h1 class="text-lg font-bold">Panel Admin / Registrasi</h1>
+            <p class="text-sm text-hint">Pilih event berjalan untuk membuka scanner QR.</p>
+        </div>
+
+        <div class="tg-card p-4">
+            <label class="block text-sm font-medium mb-2">Pilih Event Berjalan</label>
+            
+            <!-- CUSTOM DROPDOWN (Pengganti Select Bawaan) -->
+            <div class="relative mb-4" id="custom-dropdown-container">
+                <!-- Input tersembunyi untuk menyimpan nilai ID event -->
+                <input type="hidden" id="admin-event-select-value" value="">
+                
+                <!-- Tombol pemantik dropdown -->
+                <button id="custom-dropdown-btn" type="button" class="w-full p-3 border border-tg rounded-lg bg-transparent flex justify-between items-center focus:outline-none transition-colors" style="color: var(--tg-text)">
+                    <span id="custom-dropdown-text" class="text-hint">-- Pilih Event --</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="transition-transform duration-200 text-hint" id="custom-dropdown-icon"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                </button>
+                
+                <!-- Kotak List Opsi Dropdown -->
+                <div id="custom-dropdown-list" class="absolute z-20 w-full mt-2 border border-tg rounded-lg shadow-lg hidden max-h-60 overflow-y-auto" style="background-color: var(--tg-bg);">
+                    <!-- Injeksi JS -->
+                </div>
+            </div>
+            
+            <button id="btn-scan" onclick="startScanner()" class="w-full tg-btn-primary font-medium rounded-lg py-3 flex justify-center items-center opacity-50 cursor-not-allowed" disabled>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><path d="M3 7V5a2 2 0 0 1 2-2h2"></path><path d="M17 3h2a2 2 0 0 1 2 2v2"></path><path d="M21 17v2a2 2 0 0 1-2 2h-2"></path><path d="M7 21H5a2 2 0 0 1-2-2v-2"></path><rect width="8" height="8" x="8" y="8" rx="1"></rect></svg>
+                Mulai Scan Kamera
+            </button>
+        </div>
+
+        <div>
+            <h2 class="font-bold mb-2 px-1 text-xs text-hint tracking-wider uppercase">Daftar Hadir Live</h2>
+            <div class="tg-card divide-y border-tg p-2 min-h-[150px] max-h-[300px] overflow-y-auto" id="admin-attendance-list">
+                <p class="text-center text-hint text-sm py-8" id="admin-empty-text">Belum ada scan peserta</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== MODAL QR TICKET (USER) ==================== -->
+    <div id="qr-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
+        <div class="tg-card w-full max-w-sm overflow-hidden transform scale-95 transition-transform duration-300" id="qr-modal-content">
+            <!-- Header Modal -->
+            <div class="px-4 py-3 flex justify-between items-center border-b border-tg" style="background-color: var(--tg-sec-bg)">
+                <h3 class="font-bold text-sm">E-Ticket / Pass</h3>
+                <button onclick="closeModal()" class="text-hint hover:text-red-500">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+            <!-- Body Modal -->
+            <div class="p-6 flex flex-col items-center text-center">
+                <h2 id="modal-event-title" class="text-lg font-bold mb-1">Nama Event</h2>
+                <p id="modal-user-name" class="text-sm text-hint mb-6">Nama Peserta</p>
+                
+                <div class="p-2 bg-white rounded-xl shadow-inner mb-4">
+                    <!-- Dummy QR Code Generator dari API -->
+                    <img id="modal-qr-img" src="" alt="QR Code" class="w-48 h-48 object-contain">
+                </div>
+                
+                <p class="text-[11px] text-hint bg-gray-100 dark:bg-gray-800 px-3 py-1 rounded-full font-mono" id="modal-ticket-id">
+                    ID: 
+                </p>
+                <p class="text-xs text-hint mt-4">Tunjukkan QR ini ke tim registrasi saat masuk.</p>
+            </div>
+            <!-- Footer Modal -->
+            <div class="p-3 border-t border-tg text-center">
+                <button onclick="closeModal()" class="w-full py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg font-bold text-sm">Tutup</button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ==================== JAVASCRIPT ==================== -->
+    <script>
+        // INIT TELEGRAM API
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+        tg.ready();
+        
+        // Atur warna header app mengikuti tema native
+        tg.setHeaderColor('secondary_bg_color');
+
+        // DATA DUMMY
+        const userProfile = tg.initDataUnsafe?.user || { first_name: "Tomy", last_name: "Aliyansyah", id: "123456" };
+        const fullName = userProfile.first_name + (userProfile.last_name ? ' ' + userProfile.last_name : '');
+        
+        const dummyEvents = [
+            { id: "EVT-PYC-001", title: "PyConID 2026", date: "16 Sep 2026", status: "Berjalan" },
+            { id: "EVT-PLM-002", title: "PalembangPy Meetup", date: "20 Nov 2026", status: "Mendatang" },
+            { id: "EVT-ALF-003", title: "Reuni Akbar Al-Firdaus", date: "05 Des 2026", status: "Mendatang" },
+            { id: "EVT-JS-004", title: "Workshop Alpine & Tailwind", date: "10 Apr 2026", status: "Selesai" }
+        ];
+
+        const dummyCerts = [
+            { title: "Peserta Terbaik PyConID 2025", issueDate: "Okt 2025", id: "CRT-991" },
+            { title: "Workshop Alpine & Tailwind", issueDate: "Apr 2026", id: "CRT-992" }
+        ];
+
+        // RENDER UI AWAL
+        function initData() {
+            document.getElementById('user-name').innerText = fullName;
+            document.getElementById('user-avatar').innerText = userProfile.first_name.charAt(0);
+            document.getElementById('stat-events').innerText = dummyEvents.length;
+            document.getElementById('stat-certs').innerText = dummyCerts.length;
+            
+            renderUserEvents();
+            renderUserCerts();
+            renderAdminEventsDropdown(); // Gunakan fungsi custom dropdown
+        }
+
+        // TAB SWITCHER LOGIC (USER)
+        function switchTab(tabName) {
+            document.querySelectorAll('.user-tab').forEach(el => el.classList.add('hidden'));
+            document.getElementById('tab-' + tabName).classList.remove('hidden');
+            
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            document.getElementById('nav-' + tabName).classList.add('active');
+            
+            if(tg.HapticFeedback) tg.HapticFeedback.selectionChanged();
+        }
+
+        // RENDER EVENT LIST (TAB 2)
+        function renderUserEvents() {
+            const container = document.getElementById('user-event-list');
+            container.innerHTML = '';
+            
+            dummyEvents.forEach(ev => {
+                let statusColor = "text-hint";
+                let btnHtml = "";
+                
+                if(ev.status === "Berjalan") {
+                    statusColor = "text-green-500 font-bold";
+                    btnHtml = `<button onclick="showTicket('${ev.title}', '${ev.id}')" class="px-3 py-1 text-[10px] bg-blue-100 text-blue-600 rounded-md font-bold uppercase tracking-wide">Lihat Tiket</button>`;
+                } else if(ev.status === "Mendatang") {
+                    statusColor = "text-blue-500";
+                    btnHtml = `<button onclick="showTicket('${ev.title}', '${ev.id}')" class="px-3 py-1 text-[10px] bg-gray-100 text-gray-600 rounded-md font-bold uppercase tracking-wide border border-gray-300">Lihat Tiket</button>`;
+                }
+
+                container.innerHTML += `
+                    <div class="p-4 flex items-center justify-between">
+                        <div>
+                            <h3 class="font-bold text-sm">${ev.title}</h3>
+                            <p class="text-xs ${statusColor}">${ev.status} • <span class="text-hint font-normal">${ev.date}</span></p>
+                        </div>
+                        <div>${btnHtml}</div>
+                    </div>
+                `;
+            });
+        }
+
+        // RENDER CERTIFICATES (TAB 3)
+        function renderUserCerts() {
+            const container = document.getElementById('user-cert-list');
+            container.innerHTML = '';
+            
+            dummyCerts.forEach(cert => {
+                container.innerHTML += `
+                    <div class="tg-card p-4 flex items-center">
+                        <div class="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center text-purple-600 mr-4 flex-shrink-0">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="font-bold text-sm leading-tight">${cert.title}</h3>
+                            <p class="text-xs text-hint mt-1">Diberikan: ${cert.issueDate}</p>
+                        </div>
+                        <button onclick="tg.showAlert('Mendownload Sertifikat: ${cert.title}')" class="p-2 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 rounded-full">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+                        </button>
+                    </div>
+                `;
+            });
+        }
+
+        // TAMPILKAN MODAL QR
+        function showTicket(eventTitle, ticketId) {
+            document.getElementById('modal-event-title').innerText = eventTitle;
+            document.getElementById('modal-user-name').innerText = fullName;
+            document.getElementById('modal-ticket-id').innerText = "ID: " + ticketId + "-" + userProfile.id;
+            
+            const qrData = encodeURIComponent(JSON.stringify({ userId: userProfile.id, ticketId: ticketId }));
+            document.getElementById('modal-qr-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${qrData}`;
+            
+            const modal = document.getElementById('qr-modal');
+            const modalContent = document.getElementById('qr-modal-content');
+            
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                modalContent.classList.remove('scale-95');
+                modalContent.classList.add('scale-100');
+            }, 10);
+            
+            if(tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('qr-modal');
+            const modalContent = document.getElementById('qr-modal-content');
+            
+            modal.classList.add('opacity-0');
+            modalContent.classList.remove('scale-100');
+            modalContent.classList.add('scale-95');
+            
+            setTimeout(() => { modal.classList.add('hidden'); }, 300);
+        }
+
+        // ================= ADMIN LOGIC (CUSTOM DROPDOWN) =================
+
+        // 1. Render Pilihan Dropdown Custom
+        function renderAdminEventsDropdown() {
+            const listContainer = document.getElementById('custom-dropdown-list');
+            listContainer.innerHTML = '';
+            
+            let hasActiveEvent = false;
+
+            dummyEvents.forEach(ev => {
+                if(ev.status === "Berjalan") {
+                    hasActiveEvent = true;
+                    // Class bg menyesuaikan dark mode/light mode pada hover
+                    listContainer.innerHTML += `
+                        <div class="px-4 py-3 cursor-pointer text-sm border-b border-tg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors last:border-b-0" 
+                             onclick="selectCustomEvent('${ev.id}', '${ev.title} - ${ev.date}')">
+                            <div class="font-bold">${ev.title}</div>
+                            <div class="text-xs text-hint mt-0.5">${ev.date}</div>
+                        </div>
+                    `;
+                }
+            });
+
+            if(!hasActiveEvent) {
+                listContainer.innerHTML = `<div class="px-4 py-4 text-sm text-center text-hint">Tidak ada event berjalan</div>`;
+            }
+        }
+
+        // 2. Logic Buka-Tutup Dropdown
+        const dropdownBtn = document.getElementById('custom-dropdown-btn');
+        const dropdownList = document.getElementById('custom-dropdown-list');
+        const dropdownIcon = document.getElementById('custom-dropdown-icon');
+
+        dropdownBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            dropdownList.classList.toggle('hidden');
+            
+            // Animasi putar ikon panah (chevron)
+            if(!dropdownList.classList.contains('hidden')) {
+                dropdownIcon.style.transform = 'rotate(180deg)';
+                dropdownBtn.classList.add('border-blue-500'); // Highlight border
+            } else {
+                dropdownIcon.style.transform = 'rotate(0deg)';
+                dropdownBtn.classList.remove('border-blue-500');
+            }
+        });
+
+        // 3. Menutup Dropdown ketika klik di luar area
+        document.addEventListener('click', function(e) {
+            if (!dropdownBtn.contains(e.target) && !dropdownList.contains(e.target)) {
+                dropdownList.classList.add('hidden');
+                dropdownIcon.style.transform = 'rotate(0deg)';
+                dropdownBtn.classList.remove('border-blue-500');
+            }
+        });
+
+        // 4. Aksi saat sebuah opsi Event diklik
+        function selectCustomEvent(eventId, eventLabel) {
+            // Ubah teks tombol dan simpan valuenya ke input tersembunyi
+            const textElement = document.getElementById('custom-dropdown-text');
+            textElement.innerText = eventLabel;
+            textElement.classList.remove('text-hint'); // Beri warna teks solid
+            
+            document.getElementById('admin-event-select-value').value = eventId;
+            
+            // Tutup dropdown
+            dropdownList.classList.add('hidden');
+            dropdownIcon.style.transform = 'rotate(0deg)';
+            dropdownBtn.classList.remove('border-blue-500');
+
+            // Aktifkan Tombol Scanner
+            const btnScan = document.getElementById('btn-scan');
+            btnScan.disabled = false;
+            btnScan.classList.remove('opacity-50', 'cursor-not-allowed');
+
+            if(tg.HapticFeedback) tg.HapticFeedback.selectionChanged();
+        }
+
+        // ================= SCANNER LOGIC =================
+        function startScanner() {
+            // Ambil value dari hidden input yang menyimpan hasil custom dropdown
+            const selectedEvent = document.getElementById('admin-event-select-value').value;
+            if(!selectedEvent) return;
+
+            tg.showScanQrPopup({ text: "Arahkan kamera ke QR Peserta" }, function(qrText) {
+                processAttendance(qrText);
+                return true; 
+            });
+            
+            // Fallback (jika buka di browser biasa)
+            if(!tg.initDataUnsafe?.user) {
+                setTimeout(() => {
+                    let dummyQR = prompt("Scanner Native hanya jalan di Telegram.\nMasukkan hasil QR Dummy:");
+                    if(dummyQR) processAttendance(dummyQR);
+                }, 500);
+            }
+        }
+
+        function processAttendance(qrData) {
+            const list = document.getElementById('admin-attendance-list');
+            const emptyText = document.getElementById('admin-empty-text');
+            if(emptyText) emptyText.remove();
+
+            let shortData = qrData.substring(0, 8) + '...';
+            try {
+                const parsed = JSON.parse(qrData);
+                if(parsed.userId) shortData = "User ID: " + parsed.userId;
+            } catch(e) {}
+
+            const timestamp = new Date().toLocaleTimeString('id-ID');
+            const html = `
+                <div class="p-3 flex items-center justify-between border-b border-tg border-opacity-30">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-green-600 font-bold text-xs">✓</div>
+                        <div>
+                            <h3 class="font-bold text-sm">Peserta [${shortData}]</h3>
+                            <p class="text-xs text-hint">Check-in: ${timestamp}</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+            list.insertAdjacentHTML('afterbegin', html);
+            
+            if(tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+        }
+
+        // ROLE SWITCHER (DEVELOPMENT ONLY)
+        function switchRole(role) {
+            if(role === 'user') {
+                document.getElementById('view-user').classList.remove('hidden');
+                document.getElementById('view-admin').classList.add('hidden');
+            } else {
+                document.getElementById('view-user').classList.add('hidden');
+                document.getElementById('view-admin').classList.remove('hidden');
+            }
+        }
+
+        // JALANKAN SAAT LOAD
+        initData();
+        
+    </script>
+</body>
+</html>
